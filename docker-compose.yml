@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  cups-samsung-scx3400:
+    build: .
+    container_name: samsung-scx3400-cups
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - CUPS_USER=admin
+      - CUPS_PASSWORD=admin
+    volumes:
+      - cups-config:/etc/cups
+      - cups-spool:/var/spool/cups
+      - cups-log:/var/log/cups
+    devices:
+      # USB device access (adjust if needed)
+      # - /dev/bus/usb:/dev/bus/usb
+      - /dev/usb:/dev/usb
+    privileged: true
+    ports:
+      - "631:631"
+    labels:
+      - "com.docker.compose.project=samsung-scx3400"
+
+volumes:
+  cups-config:
+    driver: local
+  cups-spool:
+    driver: local
+  cups-log:
+    driver: local
