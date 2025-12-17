@@ -6,11 +6,10 @@ echo "[CUPS] Initializing..."
 mkdir -p /run/cups
 chown -R root:lp /run/cups
 
-# 🔥 Lancer cupsd DIRECTEMENT en foreground, mais en background shell
-cupsd -f &
-CUPSD_PID=$!
+# Start CUPS
+service cups start
 
-# Attendre que CUPS réponde
+# Wait CUPS daemon
 echo "[CUPS] Waiting for daemon..."
 for i in {1..15}; do
   if lpstat -r >/dev/null 2>&1; then
@@ -22,8 +21,9 @@ done
 
 lpstat -r || { echo "[CUPS] FAILED"; exit 1; }
 
-# Configuration CUPS
+# Configure CUPS
 cupsctl WebInterface=yes
+cupsctl ServerAlias=*
 cupsctl --remote-any --remote-admin --share-printers
 
 # Création imprimante (idempotente)
@@ -41,5 +41,5 @@ fi
 
 echo "[CUPS] Ready"
 
-# 🔒 Passer cupsd en PID 1 proprement
-wait $CUPSD_PID
+# Keep container running
+exec tail -f /dev/null

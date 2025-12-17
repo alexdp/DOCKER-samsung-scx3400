@@ -15,9 +15,15 @@ RUN apt-get update && apt-get install -y \
     nano \
     net-tools \
     iputils-ping \
+    tini \
     psmisc \
     cups cups-client cups-daemon libusb-0.1-4 libcupsimage2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Declare ls and ll shortcut
+RUN echo '/bin/ls -alF --color=auto "$@"' > /usr/local/bin/ll && chmod +x /usr/local/bin/ll
+# Set default shell bash
+SHELL ["/bin/bash", "-c"]
 
 COPY drivers/suldr-keyring_4_all.deb /tmp/
 COPY drivers/suld-ppd-4_1.00.39-2_all.deb /tmp/
@@ -35,4 +41,4 @@ RUN chmod +x /entrypoint.sh
 
 EXPOSE 631
 
-CMD ["/entrypoint.sh"]
+ENTRYPOINT /usr/bin/tini -- /entrypoint.sh
