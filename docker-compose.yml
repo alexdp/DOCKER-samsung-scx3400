@@ -1,0 +1,15 @@
+services:
+  samsung-scx3400:
+    container_name: samsung-scx3400
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    ports:
+      - "631:631"
+
+    environment:
+      PRINTER_NAME: SCX3400W
+      PRINTER_URL: socket://192.168.1.24:9100
+
+    restart: unless-stopped
