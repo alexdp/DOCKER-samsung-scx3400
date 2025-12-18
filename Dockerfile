@@ -1,64 +1,44 @@
-# Docker image for Samsung SCX-3400W printer/scanner with CUPS
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
-# Avoid prompts from apt
+LABEL maintainer="alexdp"
+LABEL description="Ubuntu 24.04 base image with essential tools"
+LABEL version="1.0.0"
+
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install CUPS, necessary tools, and dependencies
 RUN apt-get update && apt-get install -y \
-    cups \
-    cups-client \
-    cups-bsd \
-    cups-filters \
-    samba-client \
-    printer-driver-splix \
-    wget \
+    build-essential \
     curl \
-    libcups2 \
-    libcupsimage2 \
-    avahi-daemon \
-    avahi-utils \
-    python3 \
-    python3-cups \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    wget \
+    git \
+    vim \
+    nano \
+    net-tools \
+    iputils-ping \
+    tini \
+    psmisc \
+    cups cups-client cups-daemon libusb-0.1-4 libcupsimage2 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Download and install Samsung Unified Linux Driver (optional)
-# The SPL (Samsung Printer Language) driver is needed for SCX-3400 series
-# The splix driver (printer-driver-splix) is already installed as a fallback
-# and should work with most Samsung printers including SCX-3400
-RUN mkdir -p /tmp/samsung && \
-    cd /tmp/samsung && \
-    (wget -q http://www.bchemnet.com/suldr/pool/debian/extra/su/suldr-keyring_2_all.deb && \
-    dpkg -i suldr-keyring_2_all.deb && \
-    echo "deb http://www.bchemnet.com/suldr/ debian extra" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y suld-driver-3.00.90) || \
-    echo "SULD driver installation skipped, using splix driver as fallback" && \
-    rm -rf /tmp/samsung
+# Declare ls and ll shortcut
+RUN echo '/bin/ls -alF --color=auto "$@"' > /usr/local/bin/ll && chmod +x /usr/local/bin/ll
+# Set default shell bash
+SHELL ["/bin/bash", "-c"]
 
-# Configure CUPS
-# Allow access from network
-RUN sed -i 's/Listen localhost:631/Listen 0.0.0.0:631/' /etc/cups/cupsd.conf && \
-    sed -i 's/<Location \/>/<Location \/>\n  Allow from all/' /etc/cups/cupsd.conf && \
-    sed -i 's/<Location \/admin>/<Location \/admin>\n  Allow from all\n  Require user @SYSTEM/' /etc/cups/cupsd.conf && \
-    sed -i 's/<Location \/admin\/conf>/<Location \/admin\/conf>\n  Allow from all/' /etc/cups/cupsd.conf && \
-    echo "ServerAlias *" >> /etc/cups/cupsd.conf && \
-    echo "DefaultEncryption Never" >> /etc/cups/cupsd.conf
+COPY drivers/suldr-keyring_4_all.deb /tmp/
+COPY drivers/suld-ppd-4_1.00.39-2_all.deb /tmp/
+COPY drivers/suld-driver2-1.00.39_1.00.39-2_amd64.deb /tmp/
+COPY drivers/suld-driver2-common-1_1-14_all.deb /tmp/
 
-# Create necessary directories
-RUN mkdir -p /var/run/cups /var/spool/cups /var/log/cups
+RUN dpkg -i /tmp/suldr-keyring_4_all.deb \
+ && dpkg -i /tmp/suld-ppd-4_1.00.39-2_all.deb \
+ && dpkg -i /tmp/suld-driver2-common-1_1-14_all.deb \
+ && dpkg -i /tmp/suld-driver2-1.00.39_1.00.39-2_amd64.deb
 
-# Expose CUPS web interface and IPP port
-EXPOSE 631
-
-# Add startup script
+# Copier un script d'initialisation (créé à part)
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Set working directory
-WORKDIR /etc/cups
+EXPOSE 631
 
-# Start CUPS
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["cupsd", "-f"]
+ENTRYPOINT /usr/bin/tini -- /entrypoint.sh

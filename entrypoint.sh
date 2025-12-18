@@ -1,32 +1,45 @@
 #!/bin/bash
 set -e
 
-echo "Starting CUPS for Samsung SCX-3400W..."
+echo "[CUPS] Initializing..."
 
-# Start Avahi daemon for network printer discovery
-if [ -x /usr/sbin/avahi-daemon ]; then
-    /usr/sbin/avahi-daemon --daemonize
+mkdir -p /run/cups
+chown -R root:lp /run/cups
+
+# Start CUPS
+service cups start
+
+# Wait CUPS daemon
+echo "[CUPS] Waiting for daemon..."
+for i in {1..15}; do
+  if lpstat -r >/dev/null 2>&1; then
+    echo "[CUPS] Daemon ready"
+    break
+  fi
+  sleep 1
+done
+
+lpstat -r || { echo "[CUPS] FAILED"; exit 1; }
+
+# Configure CUPS
+cupsctl WebInterface=yes
+cupsctl ServerAlias=*
+cupsctl --remote-any --remote-admin --share-printers
+
+# Création imprimante (idempotente)
+if [[ -n "$PRINTER_NAME" && -n "$PRINTER_URL" ]]; then
+  if ! lpstat -p "$PRINTER_NAME" >/dev/null 2>&1; then
+    lpadmin -p "$PRINTER_NAME" -E \
+      -v "$PRINTER_URL" \
+      -P /usr/share/ppd/suld/Samsung_SCX-3400_Series.ppd.gz
+    cupsenable "$PRINTER_NAME"
+    cupsaccept "$PRINTER_NAME"
+  else
+    echo "[CUPS] Printer already exists"
+  fi
 fi
 
-# Create admin user if environment variables are set
-if [ -n "$CUPS_USER" ] && [ -n "$CUPS_PASSWORD" ]; then
-    echo "Creating CUPS admin user: $CUPS_USER"
-    useradd -r -G lpadmin -M $CUPS_USER 2>/dev/null || true
-    echo "$CUPS_USER:$CUPS_PASSWORD" | chpasswd
-fi
+echo "[CUPS] Ready"
 
-# Set default admin user if not provided
-if [ -z "$CUPS_USER" ]; then
-    echo "Creating default CUPS admin user: admin"
-    useradd -r -G lpadmin -M admin 2>/dev/null || true
-    echo "admin:admin" | chpasswd
-    echo "Default credentials - User: admin, Password: admin"
-    echo "Please change the password after first login!"
-fi
-
-# Start CUPS in foreground
-echo "CUPS is starting..."
-echo "Web interface will be available at http://localhost:631"
-echo "Admin interface: http://localhost:631/admin"
-
-exec "$@"
+# Keep container running
+exec tail -f /dev/null
