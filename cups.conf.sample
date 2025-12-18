@@ -1,0 +1,40 @@
+# Sample CUPS configuration
+# This file shows common configuration options for CUPS
+# Copy this to your volume mount to customize CUPS behavior
+
+# Log level (debug, info, warn, error)
+LogLevel warn
+
+# Maximum number of jobs to keep in history
+MaxJobs 500
+
+# Preserve job history
+PreserveJobHistory Yes
+PreserveJobFiles 7d
+
+# Web interface settings
+WebInterface Yes
+
+# Browsing (printer discovery)
+Browsing On
+BrowseLocalProtocols dnssd
+
+# Allow remote administration
+# Note: This is already configured in the Dockerfile
+# but you can customize it here if needed
+
+# Default authentication type
+DefaultAuthType Basic
+
+# Default paper size
+DefaultPaperSize Letter
+# or use: A4
+
+# Access log
+AccessLog /var/log/cups/access_log
+
+# Error log  
+ErrorLog /var/log/cups/error_log
+
+# Page log
+PageLog /var/log/cups/page_log
